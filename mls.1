@@ -1,0 +1,70 @@
+.TH MLS 1 "2020-02-25" "2.9.1" "Manual pager utils"
+.SH NAME
+mls \- maanoo's ls (list directory contents)
+
+.SH SYNOPSIS
+.B mls
+[\fI\,OPTION\/\fR]... [\fI\,FILE\/\fR]...
+
+.SH DESCRIPTION
+.B mls
+List information about the FILEs or the current working directory if none is provided.
+
+.SH OPTIONS
+
+.SS "General options"
+
+.TP
+.BR \-a
+Do not ignore hidden files
+.TP
+.BR \-m
+Mix the directories with the other files while sorting
+
+.SS "List options"
+
+.TP
+.BR \-i
+List the inode number
+
+.SS "Tree options"
+
+.TP
+.BR \-t
+Tree recursive directory listing
+.TP
+.BR \-c
+Collapse tree single leafs
+
+.SS "Sort options"
+
+.TP
+.BR \-U
+Unsorted
+.TP
+.BR \-T
+Sort by modification time (default)
+.TP
+.BR \-N
+Sort by the file name
+.TP
+.BR \-X
+Sort by extension
+.TP
+.BR \-S
+Sort by file size
+
+.SH "EXIT STATUS"
+
+.TP
+.B 0
+Successful program execution.
+.TP
+.B 1
+Usage, syntax or configuration file error.
+.TP
+.B 2
+Operational error.
+
+.SH "SEE ALSO"
+Full documentation <https://github.com/MaanooAk/mls>
