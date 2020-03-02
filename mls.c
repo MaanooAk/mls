@@ -24,6 +24,7 @@
 
 char option_all = 0;
 char option_inode = 0;
+char option_short = 0;
 char option_mix = 0;
 char option_sort = 'T';
 char option_tree = 0;
@@ -51,6 +52,7 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 'X') option_sort = 'X';
 			else if (argv[i][ci] == 'm') option_mix = 1;
 			else if (argv[i][ci] == 'i') option_inode = 1;
+			else if (argv[i][ci] == 's') option_short += 1;
 
 			else {
 				printf("%s", help);
@@ -344,41 +346,38 @@ CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT
 }
 
 
-void print_u_printname(char *s, const struct item *i);
-void print_u_size(char *s, off_t bytes);
-void print_u_time(char *s, uint len, struct timespec *ts);
+const char* print_u_printname(char *s, const struct item *i);
+const char* print_u_size(char *s, off_t bytes);
+const char* print_u_time(char *s, struct timespec *ts);
 const char* print_u_colortext(const struct item *i);
 
 void print_list(const char* path, struct item *items, int items_count) {
+	char buffer[256], size[128], printname[2*PATH_MAX];
 
 	printf("\e[2m%s\e[0m\n", path);
 
 	for (int index=0; index<items_count; index++) {
 		struct item *i = &(items[index]);
 
-		char time_a[128], time_m[128	];
-		print_u_time(time_a, sizeof(time_a), &(i->time_a));
-		print_u_time(time_m, sizeof(time_m), &(i->time_m));
+		if (option_short < 1) {
+			char sametime = i->time_a.tv_sec /60 == i->time_m.tv_sec /60; // seconds res
 
-		char size[256];
-		size[0] = 0;
-		if (i->type == DT_REG) {
-			print_u_size(size, i->size);
+			printf(" %s", sametime ?
+				"              " :
+				print_u_time(buffer, &(i->time_a)));
 		}
 
-		const char* color = print_u_colortext(i);
-		char printname[2*PATH_MAX];
-		print_u_printname(printname, i);
+		if (option_short < 2) {
 
-		char hidden = i->name[0] == '.';
+			printf(" %s", print_u_time(buffer, &(i->time_m)));
+		}
 
-		printf(" %s %s %s %s\e[%sm%s\e[0m%s%s%s\n", 
-			strcmp(time_a, time_m) ? time_a : "              ", time_m, 
-			i->type == DT_REG ? size : type_symbol[i->type],
-			hidden ? "" : " ",
-			(i->type != DT_LNK && i->executable) ? executable_colortext : color,
-			printname[0] ? printname : i->name,
-			i->type == DT_LNK ? " \e[2m->\e[0m " : option_inode ? "  \e[2;4m" : "",
+		printf(" %s %s\e[%sm%s\e[0m%s%s%s\n",
+			(i->type == DT_REG) ? print_u_size(size, i->size) : type_symbol[i->type],
+			(i->name[0] == '.') ? "" : " ",
+			(i->type != DT_LNK && i->executable) ? executable_colortext : print_u_colortext(i),
+			print_u_printname(printname, i),
+			(i->type == DT_LNK) ? " \e[2m->\e[0m " : (option_inode) ? "  \e[2;4m" : "",
 			i->extra ? i->extra : "",
 			option_inode ? "\e[0m": "");
 
@@ -430,13 +429,16 @@ void print_tree(const char* path, struct item *items, int items_count, char* dep
 
 }
 
-void print_u_printname(char *s, const struct item *i) {
+const char* print_u_printname(char *s, const struct item *i) {
 	s[0] = 0;
 
 	if (i->name != i->extension) {
 		*i->extension = 0;
 		sprintf(s, "%s\e[2m.%s\e[0m", i->name, i->extension+1);
 		*i->extension = '.';
+		return s;
+	} else {
+		return i->name;
 	}
 }
 
@@ -457,7 +459,8 @@ const char* print_u_colortext(const struct item *i) {
 	return color;
 }
 
-void print_u_time(char *s, uint len, struct timespec *ts) {
+const char* print_u_time(char *s, struct timespec *ts) {
+	s[0] = 0;
 
     struct tm t;
     localtime_r(&(ts->tv_sec), &t);
@@ -471,25 +474,28 @@ void print_u_time(char *s, uint len, struct timespec *ts) {
 		} else format = "\e[30m%y-\e[90m%m-%d %H:%M\e[0m";
 	}
 
-    strftime(s, len, format, &t);
+    strftime(s, 200, format, &t);
+	return s;
 }
 
-void print_u_size(char *s, off_t bytes) {
-	static const char* unit_names[] = {" ", "K", "M", "G", "T", "P", "E", "Z", "Y"};
-	
+const char* print_u_size(char *s, off_t bytes) {
+	s[0] = 0;
+
 	off_t deci = 0; 
 	int units = 0;
 
 	if (bytes == 0) {
 		strcpy(s, "   - ");
-		return;
+		return s;
 	}
-	
+
 	while (bytes >= 1000) {
 		deci = bytes % 1024;
 		bytes /= 1024; 
 		units++;
 	}
+
+	static const char* unit_names[] = {" ", "K", "M", "G", "T", "P", "E", "Z", "Y"};
 
 	if (units == 0) {
 		sprintf(s, " %3d ", bytes);
@@ -499,5 +505,6 @@ void print_u_size(char *s, off_t bytes) {
 		if (deci > 1024/2) bytes++;
 		sprintf(s, " %3d\e[2m%s\e[0m", bytes, unit_names[units]);
 	}
+	return s;
 }
 
