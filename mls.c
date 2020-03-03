@@ -125,37 +125,47 @@ struct item gitems[ITEMS_BUFFER];
 int gitems_count = 0;
 int gitems_max = 0;
 
-void show(const char* path, char* depth);
+struct stats {
+	unsigned long dirs;
+	unsigned long files;
+	char has[PATH_MAX];
+
+	char depth[PATH_MAX];
+};
+
+void show(const char* path, struct stats* stats);
 
 int main(int argc, char *argv[]) {
 	fill_consts();
 
 	int shows = 0;
-	char depth[PATH_MAX];
-	depth[0] = 0;
 
 	int pos = 1;
 	while(1) {
 		pos = handle_args(argc, argv, pos);
 		if (pos == -1) break;
 
-		show(argv[pos++], depth);
+		struct stats stats = { 0, 0, "", "" };
+		show(argv[pos++], &stats);
 		shows++;
 	}
 
-	if (!shows) show(".", depth);
+	if (!shows) {
+		struct stats stats = { 0, 0, "", "" };
+		show(".", &stats);
+	}
 
 	//printf("sizeof(struct item) :: %d\nPATH_MAX :: %d\ngitems_max :: %d\n", sizeof(struct item), PATH_MAX, gitems_max);
 }
 
 
 int  load_items(const char* path, struct item *items);
-void load_stats(struct item *i);
+void load_stats(struct item *i, struct stats* stats);
 void sort_items(struct item *items, int items_count);
-void print_list(const char* path, struct item *items, int items_count);
-void print_tree(const char* path, struct item *items, int items_count, char* depth);
+void print_list(const char* path, struct item *items, int items_count, struct stats* stats);
+void print_tree(const char* path, struct item *items, int items_count, struct stats* stats);
 
-void show(const char* path, char* depth) {
+void show(const char* path, struct stats* stats) {
 
 	struct item* items = gitems + gitems_count;
 	int items_count = load_items(path, items);
@@ -164,15 +174,15 @@ void show(const char* path, char* depth) {
 	if (gitems_count > gitems_max) gitems_max = gitems_count;
 
 	for (int index=0; index<items_count; index++) {
-		load_stats(items + index);
+		load_stats(items + index, stats);
 	}
 
 	sort_items(items, items_count);
 
 	if (option_tree) {
-		print_tree(path, items, items_count, depth);
+		print_tree(path, items, items_count, stats);
 	} else {
-		print_list(path, items, items_count);
+		print_list(path, items, items_count, stats);
 	}
 
 	gitems_count -= items_count;
@@ -229,7 +239,7 @@ int load_items(const char* path, struct item *items) {
 #ifdef STACK_FULLNAME
 			strcpy(i->fullname, fullname);
 #else
-			i->fullname = strdup(fullname); 
+			i->fullname = strdup(fullname);
 #endif
 			i->name = i->fullname + strlen(path) + 1;
 		}
@@ -241,11 +251,11 @@ int load_items(const char* path, struct item *items) {
 }
 
 
-void load_stats(struct item *i) {
+void load_stats(struct item *i, struct stats* stats) {
 
 	// find the extension
 	i->extension = i->name;
-	if (i->type == DT_REG || 0) {
+	if (i->type == DT_REG) {
 		char *pos = strrchr(i->name, '.');
 		if (pos && pos != i->name && pos[1]) {
 			i->extension = pos;
@@ -274,7 +284,7 @@ void load_stats(struct item *i) {
 	// load stat
 	struct stat s;
 	int re = lstat(i->fullname, &s);
-	if (re) { 
+	if (re) {
 		printf("%s: %s\n", i->fullname, strerror(errno));
 		s.st_size = 0;
 	}
@@ -299,6 +309,20 @@ void load_stats(struct item *i) {
 	}
 	i->extra = extra[0] ? strdup(extra) : 0;
 
+	// stats
+
+	if (i->type == DT_DIR) stats->dirs++;
+	else stats->files++;
+
+	if (stats->depth[0] == 0) { // root level
+		// TODO opt
+		if (i->type == DT_DIR) {
+			if (!strcmp(i->name, ".git")) strcat(stats->has, "git ");
+		} else {
+			if (!strcmp(i->name, "Makefile")) strcat(stats->has, "make ");
+			if (!strcmp(i->name, "pom.xml")) strcat(stats->has, "mvn ");
+		}
+	}
 }
 
 int item_cmp_time(const void * a, const void * b);
@@ -351,7 +375,10 @@ const char* print_u_size(char *s, off_t bytes);
 const char* print_u_time(char *s, struct timespec *ts);
 const char* print_u_colortext(const struct item *i);
 
-void print_list(const char* path, struct item *items, int items_count) {
+void print_stats(const struct stats *stats);
+
+
+void print_list(const char* path, struct item *items, int items_count, struct stats* stats) {
 	char buffer[256], size[128], printname[2*PATH_MAX];
 
 	printf("\e[2m%s\e[0m\n", path);
@@ -383,16 +410,16 @@ void print_list(const char* path, struct item *items, int items_count) {
 
 	}
 
-	printf("\e[2m%d\e[0m\n", items_count);
+	print_stats(stats);
 }
 
 
-void print_tree(const char* path, struct item *items, int items_count, char* depth) {
-	int depth_len = strlen(depth);
+void print_tree(const char* path, struct item *items, int items_count, struct stats* stats) {
+	int depth_len = strlen(stats->depth);
 
-	if (!depth[0]) printf("%s", path);
+	if (!stats->depth[0]) printf("%s", path);
 
-	char single_dir = (option_collapse && items_count == 1 && items[0].type == DT_DIR && depth[0]);
+	char single_dir = (option_collapse && items_count == 1 && items[0].type == DT_DIR && stats->depth[0]);
 	if (!single_dir) printf("\n");
 
 	for (int index=0; index<items_count; index++) {
@@ -407,7 +434,7 @@ void print_tree(const char* path, struct item *items, int items_count, char* dep
 
 		} else {
 			printf("%s%s\e[%sm%s\e[0m%s%s%s",
-				depth, index + 1 < items_count ? "├── " : "└── ",
+				stats->depth, index + 1 < items_count ? "├── " : "└── ",
 				(i->type != DT_LNK && i->executable) ? executable_colortext : color,
 				printname[0] ? printname : i->name,
 				i->type == DT_LNK ? " \e[2m->\e[0m " : option_inode ? "  \e[2;4m" : "",
@@ -417,16 +444,25 @@ void print_tree(const char* path, struct item *items, int items_count, char* dep
 
 
 		if (i->type == DT_DIR) {
-			strcat(depth, index + 1 < items_count ? "│   " : "    ");
+			strcat(stats->depth, index + 1 < items_count ? "│   " : "    ");
 
-			show(i->fullname, depth);
+			show(i->fullname, stats);
 
-			depth[depth_len] = 0;
+			stats->depth[depth_len] = 0;
 		} else {
 			printf("\n");
 		}
 	}
 
+	if (depth_len == 0) print_stats(stats);
+}
+
+void print_stats(const struct stats *stats) {
+
+	printf("\e[2;%sm%d \e[0;2;37m%d\e[0m \e[0;90m%s\e[0m\n",
+		type_color[DT_DIR], stats->dirs,
+		stats->files,
+		stats->has);
 }
 
 const char* print_u_printname(char *s, const struct item *i) {
@@ -481,7 +517,7 @@ const char* print_u_time(char *s, struct timespec *ts) {
 const char* print_u_size(char *s, off_t bytes) {
 	s[0] = 0;
 
-	off_t deci = 0; 
+	off_t deci = 0;
 	int units = 0;
 
 	if (bytes == 0) {
@@ -491,7 +527,7 @@ const char* print_u_size(char *s, off_t bytes) {
 
 	while (bytes >= 1000) {
 		deci = bytes % 1024;
-		bytes /= 1024; 
+		bytes /= 1024;
 		units++;
 	}
 
