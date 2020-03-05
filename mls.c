@@ -83,19 +83,21 @@ void fill_consts() {
 
 	type_symbol[DT_REG]  = "     ";
 	type_symbol[DT_DIR]  = "\e[1;34md\e[0m    ";
+	type_symbol[DT_LNK]  = "\e[1;36ml\e[0m    ";
 	type_symbol[DT_FIFO] = "fifo ";
 	type_symbol[DT_SOCK] = "sock ";
-	type_symbol[DT_LNK]  = "\e[1;36ml\e[0m    ";
 	type_symbol[DT_BLK]  = "blk  ";
 	type_symbol[DT_CHR]  = "chr  ";
+	type_symbol[DT_UNKNOWN] = "unkn ";
 
 	type_color[DT_REG]  = get_color_entry_or("FILE", "");
 	type_color[DT_DIR]  = get_color_entry_or("DIR", "1;34");
+	type_color[DT_LNK]  = get_color_entry_or("LINK", "1;33");
 	type_color[DT_FIFO] = get_color_entry_or("FIFO", "1;33");
 	type_color[DT_SOCK] = get_color_entry_or("SOCK", "1;33");
-	type_color[DT_LNK]  = get_color_entry_or("LINK", "1;33");
 	type_color[DT_BLK]  = get_color_entry_or("BLK", "1;33");
 	type_color[DT_CHR]  = get_color_entry_or("CHR", "1;33");
+	type_color[DT_UNKNOWN]  = get_color_entry_or("UNKNOWN", "0;91");
 
 	executable_colortext = get_color_entry_or("EXE", "1;32");
 }
@@ -107,9 +109,11 @@ struct item {
 	off_t size;
 	struct timespec time_a;
 	struct timespec time_m;
+	ino_t inode;
 
 	char ltype;
 	char executable;
+	struct item* link;
 	char* extra;
 
 	char* name;
@@ -120,6 +124,7 @@ struct item {
 	char* fullname;
 #endif
 };
+
 
 struct item gitems[ITEMS_BUFFER];
 int gitems_count = 0;
@@ -133,7 +138,7 @@ struct stats {
 	char depth[PATH_MAX];
 };
 
-void show(const char* path, struct stats* stats);
+int show(const char* path, struct stats* stats);
 
 int main(int argc, char *argv[]) {
 	fill_consts();
@@ -165,10 +170,12 @@ void sort_items(struct item *items, int items_count);
 void print_list(const char* path, struct item *items, int items_count, struct stats* stats);
 void print_tree(const char* path, struct item *items, int items_count, struct stats* stats);
 
-void show(const char* path, struct stats* stats) {
+int show(const char* path, struct stats* stats) {
 
 	struct item* items = gitems + gitems_count;
 	int items_count = load_items(path, items);
+
+	if (items_count < 0) return items_count;
 
 	gitems_count += items_count;
 	if (gitems_count > gitems_max) gitems_max = gitems_count;
@@ -186,13 +193,17 @@ void show(const char* path, struct stats* stats) {
 	}
 
 	gitems_count -= items_count;
+	return items_count;
 }
 
 int load_items(const char* path, struct item *items) {
 	int items_count = 0;
 
 	int fd = open(path, O_RDONLY|O_DIRECTORY);
-	if (fd == -1) return 0;
+	if (fd == -1) {
+		fprintf(stderr, "open %s: %s\n", path, strerror(errno));
+		return -1;
+	}
 
 	char fullname[PATH_MAX+1] = {0};
 	strcpy(fullname, path);
@@ -251,16 +262,15 @@ int load_items(const char* path, struct item *items) {
 }
 
 
+void load_link(struct item *i);
+
 void load_stats(struct item *i, struct stats* stats) {
 
-	// find the extension
-	i->extension = i->name;
-	if (i->type == DT_REG) {
-		char *pos = strrchr(i->name, '.');
-		if (pos && pos != i->name && pos[1]) {
-			i->extension = pos;
-		}
+	if (!i->name) {
+		char *pos = strrchr(i->fullname, '/');
+		i->name = pos + 1;
 	}
+	i->extension = i->name;
 
 	/*
 	struct stats {
@@ -285,45 +295,102 @@ void load_stats(struct item *i, struct stats* stats) {
 	struct stat s;
 	int re = lstat(i->fullname, &s);
 	if (re) {
-		printf("%s: %s\n", i->fullname, strerror(errno));
-		s.st_size = 0;
+		fprintf(stderr, "lstat %s: %s\n", i->fullname, strerror(errno));
+		i->type = i->ltype = DT_UNKNOWN;
+		i->executable = 0;
+		i->extra = strerror(errno);
+		return;
 	}
+
+	i->inode = s.st_ino;
+
+	if (i->type == DT_UNKNOWN) {
+		     if (S_ISREG(s.st_mode)) i->type = DT_REG;
+		else if (S_ISDIR(s.st_mode)) i->type = DT_DIR;
+		else if (S_ISLNK(s.st_mode)) i->type = DT_LNK;
+		else if (S_ISBLK(s.st_mode)) i->type = DT_BLK;
+		else if (S_ISCHR(s.st_mode)) i->type = DT_CHR;
+		else if (S_ISFIFO(s.st_mode)) i->type = DT_FIFO;
+		else if (S_ISSOCK(s.st_mode)) i->type = DT_SOCK;
+	}
+
+
+	if (i->type == DT_REG) {
+		char *pos = strrchr(i->name, '.');
+		if (pos && pos != i->name && pos[1]) {
+			i->extension = pos;
+		}
+	}
+
 	i->size = i->type == DT_DIR ? -1 : s.st_size;
 	i->time_a = s.st_atim;
 	i->time_m = s.st_mtim;
 
 	i->executable = (i->type != DT_DIR) && (s.st_mode & S_IXUSR);
 
-	char extra[PATH_MAX];
-	extra[0] = 0;
-	if (option_inode) {
-		sprintf(extra, "%d", s.st_ino);
-	} else if (i->type == DT_LNK) {
-		// read the link
-		int ret = readlink(i->fullname, extra, sizeof(extra));
-		if (ret != -1) {
-			extra[ret] = 0;
-		} else {
-			printf("%s: %s\n", i->fullname, strerror(errno)); // TODO handle
-		}
+	if (i->type == DT_LNK && stats) {
+		load_link(i);
+	} else {
+		i->extra = 0;
 	}
-	i->extra = extra[0] ? strdup(extra) : 0;
 
-	// stats
+	if (stats) { // stats is optional
 
-	if (i->type == DT_DIR) stats->dirs++;
-	else stats->files++;
+		if (i->type == DT_DIR) stats->dirs++;
+		else stats->files++;
 
-	if (stats->depth[0] == 0) { // root level
-		// TODO opt
-		if (i->type == DT_DIR) {
-			if (!strcmp(i->name, ".git")) strcat(stats->has, "git ");
-		} else {
-			if (!strcmp(i->name, "Makefile")) strcat(stats->has, "make ");
-			if (!strcmp(i->name, "pom.xml")) strcat(stats->has, "mvn ");
+		if (stats->depth[0] == 0) { // root level
+			// TODO opt
+			if (i->type == DT_DIR) {
+				if (!strcmp(i->name, ".git")) strcat(stats->has, "git ");
+			} else {
+				if (!strcmp(i->name, "Makefile")) strcat(stats->has, "make ");
+				if (!strcmp(i->name, "pom.xml")) strcat(stats->has, "mvn ");
+			}
 		}
 	}
 }
+
+void load_link(struct item *i) {
+	char rpath[PATH_MAX];
+
+	int ret = readlink(i->fullname, rpath, sizeof(rpath));
+	if (ret == -1) {
+		i->link = 0;
+		i->extra = strerror(errno);
+		return;
+	}
+	rpath[ret] = 0;
+
+	struct item* litem = i->link = malloc(sizeof(struct item));
+	litem->type = DT_UNKNOWN;
+	litem->name = 0;
+
+	if (rpath[0] == '/') {
+#ifdef STACK_FULLNAME
+		strcpy(litem->fullname, rpath);
+#else
+		litem->fullname = strdup(rpath);
+#endif
+	} else {
+#ifdef STACK_FULLNAME
+		strncpy(litem->fullname, i->fullname, i->name - i->fullname);
+		strcat(litem->fullname, rpath);
+#else
+		char apath[PATH_MAX];
+		strncpy(apath, i->fullname, i->name - i->fullname);
+		apath[i->name - i->fullname] = 0;
+		strcat(apath, rpath);
+		litem->fullname = strdup(apath);
+#endif
+	}
+
+	load_stats(litem, 0);
+
+	i->ltype = litem->type;
+	i->extra = strdup(rpath);
+}
+
 
 int item_cmp_time(const void * a, const void * b);
 int item_cmp_size(const void * a, const void * b);
@@ -399,15 +466,24 @@ void print_list(const char* path, struct item *items, int items_count, struct st
 			printf(" %s", print_u_time(buffer, &(i->time_m)));
 		}
 
-		printf(" %s %s\e[%sm%s\e[0m%s%s%s\n",
+		printf(" %s %s\e[%sm%s\e[0m",
 			(i->type == DT_REG) ? print_u_size(size, i->size) : type_symbol[i->type],
 			(i->name[0] == '.') ? "" : " ",
 			(i->type != DT_LNK && i->executable) ? executable_colortext : print_u_colortext(i),
-			print_u_printname(printname, i),
-			(i->type == DT_LNK) ? " \e[2m->\e[0m " : (option_inode) ? "  \e[2;4m" : "",
-			i->extra ? i->extra : "",
-			option_inode ? "\e[0m": "");
+			print_u_printname(printname, i));
 
+		if (option_inode) {
+			printf(" \e[2;4m%d\e[0m",
+				i->inode);
+		}
+
+		if (i->type == DT_LNK) {
+			printf(" \e[2m->\e[0m \e[%sm%s\e[0m",
+				(!i->link) ? "0;91" : (i->link->type != DT_LNK && i->link->executable) ? executable_colortext : print_u_colortext(i->link),
+				i->extra ? i->extra : "?");
+		}
+
+		printf("\n");
 	}
 
 	print_stats(stats);
@@ -433,20 +509,29 @@ void print_tree(const char* path, struct item *items, int items_count, struct st
 			printf("/\e[%sm%s\e[0m", color, printname[0] ? printname : i->name);
 
 		} else {
-			printf("%s%s\e[%sm%s\e[0m%s%s%s",
+			printf("%s%s\e[%sm%s\e[0m",
 				stats->depth, index + 1 < items_count ? "├── " : "└── ",
 				(i->type != DT_LNK && i->executable) ? executable_colortext : color,
-				printname[0] ? printname : i->name,
-				i->type == DT_LNK ? " \e[2m->\e[0m " : option_inode ? "  \e[2;4m" : "",
-				i->extra ? i->extra : "",
-				option_inode ? "\e[0m": "");
+				printname[0] ? printname : i->name);
+
+			if (option_inode) {
+				printf(" \e[2;4m%d\e[0m",
+					i->inode);
+			}
+
+			if (i->type == DT_LNK) {
+				printf(" \e[2m->\e[0m \e[%sm%s\e[0m",
+					(!i->link) ? "0;91" : (i->link->type != DT_LNK && i->link->executable) ? executable_colortext : print_u_colortext(i->link),
+					i->extra ? i->extra : "?");
+			}
+
 		}
 
 
 		if (i->type == DT_DIR) {
 			strcat(stats->depth, index + 1 < items_count ? "│   " : "    ");
 
-			show(i->fullname, stats);
+			if (show(i->fullname, stats) == -1) printf(" ── ?\n");
 
 			stats->depth[depth_len] = 0;
 		} else {
@@ -479,20 +564,18 @@ const char* print_u_printname(char *s, const struct item *i) {
 }
 
 const char* print_u_colortext(const struct item *i) {
-	const char* color = type_color[i->type];
+	const char* color = 0;
 
 	if (i->type == DT_DIR) {
+		color = get_color_entry_or(i->name-1, color); // -1 to include the slash
 
-		char dirname[PATH_MAX];
-		strcpy(dirname, i->name);
-		strcat(dirname, "/");
-		color = get_color_entry_or(dirname, color);
+	} else {
 
-	} else if (i->type == DT_REG && i->extension[0]) {
-		color = get_color_entry_or(i->extension, color);
+		color = get_color_entry_or(i->name, color);
+		if (!color) color = get_color_entry_or(i->extension, color);
 	}
 
-	return color;
+	return color ? color : type_color[i->type];
 }
 
 const char* print_u_time(char *s, struct timespec *ts) {

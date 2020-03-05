@@ -21,8 +21,15 @@ STICKY_OTHER_WRITABLE "30;42"
 OTHER_WRITABLE "34;42"
 STICKY "37;44"
 EXEC "01;32"
+UNKNOWN "0;91"
 #
-.git/ "0;91"
+/.git "0;91"
+/lost+found "0;91"
+Makefile "0;92"
+pom.xml "0;92"
+#
+.sh "0;32"
+.bash "0;32"
 #
 .tar "01;31"
 .tgz "01;31"
