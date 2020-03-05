@@ -11,12 +11,10 @@ $(TARGET): mls.c mls.h colors.c tags.c help.c
 	cat $< | grep '^\w.* {$$' | sed 's/ {/;/' > $@
 
 help.c: mls.1
-	(man ./mls.1 | cat | head -n-1 | tail -n+7; echo -e '\0') > help
-	xxd -i help > $@
-	rm -f help
+	man ./mls.1 | head -n-1 | tail -n+7 | sed -e 's/^/"/' -e 's/$$/\\n"/' | (echo 'static const char* help = '; cat; echo ';') > $@
 
 clean:
-	rm -f $(TARGET) mls.h colors.c tags.c help.c help
+	rm -f $(TARGET) mls.h colors.c tags.c help.c
 
 INSTALL_PATH = /usr/local
 

@@ -10,8 +10,7 @@ SYNOPSIS
        mls [OPTION]... [FILE]...
 
 DESCRIPTION
-       mls  List  information about the FILEs or the current working directory
-       if none is provided.
+       mls List information about the FILEs or the current working directory if none is provided.
 
 OPTIONS
    General options
@@ -20,12 +19,12 @@ OPTIONS
        -m     Mix the directories with the other files while sorting
 
    List options
-       -i     List the inode number
+       -s     Reduce listed info, can be repeated 2 times
 
    Tree options
        -t     Tree recursive directory listing
 
-       -c     Collapse tree single leafs
+       -c     Collapse tree single leafs, can be repeated 2 times
 
    Sort options
        -U     Unsorted
@@ -47,5 +46,5 @@ EXIT STATUS
 
 SEE ALSO
        Full documentation <https://github.com/MaanooAk/mls>
-
 ```
+
