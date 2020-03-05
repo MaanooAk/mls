@@ -2,7 +2,7 @@
 TARGET = mls
 
 $(TARGET): mls.c mls.h colors.c tags.c help.c
-	gcc -O3 $< -o $@
+	clang -Wall -O3 $< -o $@
 
 %.c: %.gperf
 	gperf -e ' ' $< > $@

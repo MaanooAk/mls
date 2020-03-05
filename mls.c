@@ -85,7 +85,7 @@ void fill_consts() {
 	time_t now = time(NULL);
     localtime_r(&now, &tnow);
 
-	for (int i=0; i<256; i++) type_symbol[i] = "?", type_color[i] = "1;31";
+	//for (int i=0; i<256; i++) type_symbol[i] = "?", type_color[i] = "1;31";
 
 	type_symbol[DT_REG]  = "     ";
 	type_symbol[DT_DIR]  = "\e[1;34md\e[0m    ";
@@ -291,7 +291,7 @@ void load_stats(struct item *i, struct stats* stats) {
 	struct stat s;
 	int re = lstat(i->fullname, &s);
 	if (re) {
-		fprintf(stderr, "lstat %s: %s\n", i->fullname, strerror(errno));
+		fprintf(stderr, "mls: %s: link %s \n", strerror(errno), i->fullname);
 		i->type = i->ltype = DT_UNKNOWN;
 		i->executable = 0;
 		i->extra = strerror(errno);
@@ -334,7 +334,6 @@ void load_stats(struct item *i, struct stats* stats) {
 		else stats->files++;
 
 		if (stats->depth[0] == 0) { // root level
-			// TODO opt
 			const char* tag = get_tag_entry_or(i->name + (i->type == DT_DIR ? -1 : 0), 0);
 			if (tag) {
 				strcat(stats->has, tag);
@@ -415,6 +414,7 @@ CMP_FUNC( item_cmp_size ) { CMP_EXTRACT
 
 	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
 	CMP(a->size, b->size);
+	return 0;
 }
 
 CMP_FUNC( item_cmp_name ) { CMP_EXTRACT
@@ -452,7 +452,7 @@ void print_list(const char* path, struct item *items, int items_count, struct st
 		}
 
 		printf(" %s %s\e[%sm%s\e[0m",
-			(i->type == DT_REG) ? print_u_size(size, i->size) : type_symbol[i->type],
+			(i->type == DT_REG) ? print_u_size(size, i->size) : type_symbol[(int)i->type],
 			(i->name[0] == '.') ? "" : " ",
 			(i->type != DT_LNK && i->executable) ? executable_colortext : print_u_colortext(i),
 			print_u_printname(printname, i));
@@ -520,7 +520,7 @@ void print_tree(const char* path, struct item *items, int items_count, struct st
 
 void print_stats(const struct stats *stats) {
 
-	printf("\e[2;%sm%d \e[0;2;37m%d\e[0m \e[0;90m%s\e[0m\n",
+	printf("\e[2;%sm%ld \e[0;2;37m%ld\e[0m \e[0;90m%s\e[0m\n",
 		type_color[DT_DIR], stats->dirs,
 		stats->files,
 		stats->has);
@@ -552,7 +552,7 @@ const char* print_u_colortext(const struct item *i) {
 		if (!color) color = get_color_entry_or(i->extension, color);
 	}
 
-	return color ? color : type_color[i->type];
+	return color ? color : type_color[(int)i->type];
 }
 
 const char* print_u_time(char *s, struct timespec *ts) {
@@ -589,12 +589,12 @@ const char* print_u_size(char *s, off_t bytes) {
 	if (bytes == 0) {
 		strcpy(s, "   - ");
 	} else if (units == 0) {
-		sprintf(s, " %3d ", bytes);
+		sprintf(s, " %3ld ", bytes);
 	} else if (bytes < 10 && units > 2) {
-		sprintf(s, " %d.%d\e[2m%c\e[0m", bytes, deci / 102, unit_names[units]);
+		sprintf(s, " %ld.%ld\e[2m%c\e[0m", bytes, deci / 102, unit_names[units]);
 	} else {
 		if (deci > 1024/2) bytes++;
-		sprintf(s, " %3d\e[2m%c\e[0m", bytes, unit_names[units]);
+		sprintf(s, " %3ld\e[2m%c\e[0m", bytes, unit_names[units]);
 	}
 	return s;
 }
