@@ -1,8 +1,11 @@
 
 TARGET = mls
 
-$(TARGET): mls.c colors.c help.c
+$(TARGET): mls.c mls.h colors.c help.c
 	gcc -O3 $< -o $@
+
+%.h: %.c
+	cat $< | grep '^[a-z].* {$$' | sed 's/\(.*\) {/\1;/' > $@
 
 colors.c: colors.gperf
 	gperf -N 'get_color_entry' -H 'hash_extension' -e ' ' $< > $@
@@ -14,7 +17,7 @@ help.c: mls.1
 	rm -f help
 
 clean:
-	rm -f $(TARGET) colors.c help.c help
+	rm -f $(TARGET) mls.h colors.c help.c help
 
 INSTALL_PATH = /usr/local
 

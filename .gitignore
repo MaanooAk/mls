@@ -1,5 +1,6 @@
 
 mls
+mls.h
 colors.c
 help.c
 help

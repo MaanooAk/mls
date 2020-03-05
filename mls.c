@@ -16,6 +16,8 @@
 #include "colors.c"
 #include "help.c"
 
+#include "mls.h"
+
 
 #define PATH_BUF_SIZE      2 * PATH_MAX
 #define GETDENTS_BUF_SIZE  8 * 1024
@@ -138,7 +140,6 @@ struct stats {
 	char depth[PATH_MAX];
 };
 
-int show(const char* path, struct stats* stats);
 
 int main(int argc, char *argv[]) {
 	fill_consts();
@@ -160,15 +161,9 @@ int main(int argc, char *argv[]) {
 		show(".", &stats);
 	}
 
-	//printf("sizeof(struct item) :: %d\nPATH_MAX :: %d\ngitems_max :: %d\n", sizeof(struct item), PATH_MAX, gitems_max);
+	// printf("sizeof(struct item) :: %d\nPATH_MAX :: %d\ngitems_max :: %d\n", sizeof(struct item), PATH_MAX, gitems_max);
 }
 
-
-int  load_items(const char* path, struct item *items);
-void load_stats(struct item *i, struct stats* stats);
-void sort_items(struct item *items, int items_count);
-void print_list(const char* path, struct item *items, int items_count, struct stats* stats);
-void print_tree(const char* path, struct item *items, int items_count, struct stats* stats);
 
 int show(const char* path, struct stats* stats) {
 
@@ -261,8 +256,6 @@ int load_items(const char* path, struct item *items) {
 	return items_count;
 }
 
-
-void load_link(struct item *i);
 
 void load_stats(struct item *i, struct stats* stats) {
 
@@ -435,14 +428,6 @@ CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT
 	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
 	return strcmp(a->extension, b->extension);
 }
-
-
-const char* print_u_printname(char *s, const struct item *i);
-const char* print_u_size(char *s, off_t bytes);
-const char* print_u_time(char *s, struct timespec *ts);
-const char* print_u_colortext(const struct item *i);
-
-void print_stats(const struct stats *stats);
 
 
 void print_list(const char* path, struct item *items, int items_count, struct stats* stats) {
