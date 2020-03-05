@@ -8,11 +8,10 @@ $(TARGET): mls.c mls.h colors.c tags.c help.c
 	gperf -e ' ' $< > $@
 
 %.h: %.c
-	cat $< | grep '^[a-z].* {$$' | sed 's/\(.*\) {/\1;/' > $@
+	cat $< | grep '^\w.* {$$' | sed 's/ {/;/' > $@
 
 help.c: mls.1
-	man ./mls.1 | cat | head -n-1 | tail -n+7 > help
-	echo -e '\0' >> help
+	(man ./mls.1 | cat | head -n-1 | tail -n+7; echo -e '\0') > help
 	xxd -i help > $@
 	rm -f help
 
