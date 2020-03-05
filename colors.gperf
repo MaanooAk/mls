@@ -1,3 +1,6 @@
+%define constants-prefix COLORS
+%define hash-function-name hash_name_colors
+%define lookup-function-name get_color_entry
 %ignore-case
 %struct-type
 struct color_entry { const char* name; const char* colortext; };

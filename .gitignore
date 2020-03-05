@@ -2,6 +2,7 @@
 mls
 mls.h
 colors.c
+tags.c
 help.c
 help
 

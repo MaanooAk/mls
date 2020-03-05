@@ -1,0 +1,12 @@
+%define constants-prefix TAGS
+%define hash-function-name hash_name_tags
+%define lookup-function-name get_tag_entry
+%struct-type
+struct tag_entry { const char* name; const char* tag; };
+%%
+#
+/.git "git"
+Makefile "make"
+pom.xml "mvn"
+#
+%%

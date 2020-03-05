@@ -14,6 +14,7 @@
 #include <linux/limits.h>
 
 #include "colors.c"
+#include "tags.c"
 #include "help.c"
 
 #include "mls.h"
@@ -73,6 +74,11 @@ const char* executable_colortext;
 const char* get_color_entry_or(char* name, const char* def) {
 	struct color_entry *ce = get_color_entry(name, strlen(name));
 	return ce ? ce->colortext : def;
+}
+
+const char* get_tag_entry_or(char* name, const char* def) {
+	struct tag_entry *e = get_tag_entry(name, strlen(name));
+	return e ? e->tag : def;
 }
 
 void fill_consts() {
@@ -334,11 +340,10 @@ void load_stats(struct item *i, struct stats* stats) {
 
 		if (stats->depth[0] == 0) { // root level
 			// TODO opt
-			if (i->type == DT_DIR) {
-				if (!strcmp(i->name, ".git")) strcat(stats->has, "git ");
-			} else {
-				if (!strcmp(i->name, "Makefile")) strcat(stats->has, "make ");
-				if (!strcmp(i->name, "pom.xml")) strcat(stats->has, "mvn ");
+			const char* tag = get_tag_entry_or(i->name + (i->type == DT_DIR ? -1 : 0), 0);
+			if (tag) {
+				strcat(stats->has, tag);
+				strcat(stats->has, " ");
 			}
 		}
 	}
