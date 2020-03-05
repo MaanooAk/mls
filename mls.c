@@ -45,7 +45,7 @@ int handle_args(int argc, char *argv[], int start) {
 
 			else if (argv[i][ci] == 'a') option_all = 1;
 			else if (argv[i][ci] == 't') option_tree = 1;
-			else if (argv[i][ci] == 'c') option_collapse = 1;
+			else if (argv[i][ci] == 'c') option_collapse += 1;
 			else if (argv[i][ci] == 'U') option_sort = 0;
 			else if (argv[i][ci] == 'S') option_sort = 'S';
 			else if (argv[i][ci] == 'N') option_sort = 'N';
@@ -495,8 +495,9 @@ void print_tree(const char* path, struct item *items, int items_count, struct st
 
 	if (!stats->depth[0]) printf("%s", path);
 
-	char single_dir = (option_collapse && items_count == 1 && items[0].type == DT_DIR && stats->depth[0]);
-	if (!single_dir) printf("\n");
+	char single_dir = (option_collapse > 0 && items_count == 1 && items[0].type == DT_DIR && stats->depth[0]);
+	char single_file = (option_collapse > 1 && items_count == 1 && items[0].type != DT_DIR && stats->depth[0]);
+	if (!single_dir && !single_file) printf("\n");
 
 	for (int index=0; index<items_count; index++) {
 		struct item *i = &(items[index]);
@@ -510,7 +511,8 @@ void print_tree(const char* path, struct item *items, int items_count, struct st
 
 		} else {
 			printf("%s%s\e[%sm%s\e[0m",
-				stats->depth, index + 1 < items_count ? "├── " : "└── ",
+				single_file ? "" : stats->depth,
+				single_file ? " ── " : index + 1 < items_count ? "├── " : "└── ",
 				(i->type != DT_LNK && i->executable) ? executable_colortext : color,
 				printname[0] ? printname : i->name);
 
