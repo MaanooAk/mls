@@ -26,7 +26,6 @@
 
 
 char option_all = 0;
-char option_inode = 0;
 char option_short = 0;
 char option_mix = 0;
 char option_sort = 'T';
@@ -54,7 +53,6 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 'N') option_sort = 'N';
 			else if (argv[i][ci] == 'X') option_sort = 'X';
 			else if (argv[i][ci] == 'm') option_mix = 1;
-			else if (argv[i][ci] == 'i') option_inode = 1;
 			else if (argv[i][ci] == 's') option_short += 1;
 
 			else {
@@ -117,7 +115,6 @@ struct item {
 	off_t size;
 	struct timespec time_a;
 	struct timespec time_m;
-	ino_t inode;
 
 	char ltype;
 	char executable;
@@ -202,7 +199,7 @@ int load_items(const char* path, struct item *items) {
 
 	int fd = open(path, O_RDONLY|O_DIRECTORY);
 	if (fd == -1) {
-		fprintf(stderr, "open %s: %s\n", path, strerror(errno));
+		fprintf(stderr, "mls: %s: %s\n", strerror(errno), path);
 		return -1;
 	}
 
@@ -300,8 +297,6 @@ void load_stats(struct item *i, struct stats* stats) {
 		i->extra = strerror(errno);
 		return;
 	}
-
-	i->inode = s.st_ino;
 
 	if (i->type == DT_UNKNOWN) {
 		     if (S_ISREG(s.st_mode)) i->type = DT_REG;
@@ -462,11 +457,6 @@ void print_list(const char* path, struct item *items, int items_count, struct st
 			(i->type != DT_LNK && i->executable) ? executable_colortext : print_u_colortext(i),
 			print_u_printname(printname, i));
 
-		if (option_inode) {
-			printf(" \e[2;4m%d\e[0m",
-				i->inode);
-		}
-
 		if (i->type == DT_LNK) {
 			printf(" \e[2m->\e[0m \e[%sm%s\e[0m",
 				(!i->link) ? "0;91" : (i->link->type != DT_LNK && i->link->executable) ? executable_colortext : print_u_colortext(i->link),
@@ -500,25 +490,19 @@ void print_tree(const char* path, struct item *items, int items_count, struct st
 			printf("/\e[%sm%s\e[0m", color, printname[0] ? printname : i->name);
 
 		} else {
+
 			printf("%s%s\e[%sm%s\e[0m",
 				single_file ? "" : stats->depth,
 				single_file ? " ── " : index + 1 < items_count ? "├── " : "└── ",
 				(i->type != DT_LNK && i->executable) ? executable_colortext : color,
 				printname[0] ? printname : i->name);
 
-			if (option_inode) {
-				printf(" \e[2;4m%d\e[0m",
-					i->inode);
-			}
-
 			if (i->type == DT_LNK) {
 				printf(" \e[2m->\e[0m \e[%sm%s\e[0m",
 					(!i->link) ? "0;91" : (i->link->type != DT_LNK && i->link->executable) ? executable_colortext : print_u_colortext(i->link),
 					i->extra ? i->extra : "?");
 			}
-
 		}
-
 
 		if (i->type == DT_DIR) {
 			strcat(stats->depth, index + 1 < items_count ? "│   " : "    ");
@@ -542,6 +526,7 @@ void print_stats(const struct stats *stats) {
 		stats->has);
 }
 
+
 const char* print_u_printname(char *s, const struct item *i) {
 	s[0] = 0;
 
@@ -559,7 +544,7 @@ const char* print_u_colortext(const struct item *i) {
 	const char* color = 0;
 
 	if (i->type == DT_DIR) {
-		color = get_color_entry_or(i->name-1, color); // -1 to include the slash
+		color = get_color_entry_or(i->name - 1, color);
 
 	} else {
 
@@ -571,34 +556,27 @@ const char* print_u_colortext(const struct item *i) {
 }
 
 const char* print_u_time(char *s, struct timespec *ts) {
-	s[0] = 0;
 
     struct tm t;
     localtime_r(&(ts->tv_sec), &t);
 
-	char* format = "\e[90m%y-%m-%d %H:%M\e[0m";
+	char* format;
 	if (t.tm_year == tnow.tm_year) {
 		if (t.tm_mon == tnow.tm_mon) {
 			if (t.tm_mon == tnow.tm_mon) {
 				format = "\e[30m%y-%m-%d \e[90m%H:%M\e[0m";
 			} else format = "\e[30m%y-%m-\e[90m%d %H:%M\e[0m";
 		} else format = "\e[30m%y-\e[90m%m-%d %H:%M\e[0m";
-	}
+	} else format = "\e[90m%y-%m-%d %H:%M\e[0m";
 
     strftime(s, 200, format, &t);
 	return s;
 }
 
 const char* print_u_size(char *s, off_t bytes) {
-	s[0] = 0;
 
 	off_t deci = 0;
 	int units = 0;
-
-	if (bytes == 0) {
-		strcpy(s, "   - ");
-		return s;
-	}
 
 	while (bytes >= 1000) {
 		deci = bytes % 1024;
@@ -606,15 +584,17 @@ const char* print_u_size(char *s, off_t bytes) {
 		units++;
 	}
 
-	static const char* unit_names[] = {" ", "K", "M", "G", "T", "P", "E", "Z", "Y"};
+	static const char* unit_names = " KMGTPEZY";
 
-	if (units == 0) {
+	if (bytes == 0) {
+		strcpy(s, "   - ");
+	} else if (units == 0) {
 		sprintf(s, " %3d ", bytes);
 	} else if (bytes < 10 && units > 2) {
-		sprintf(s, " %d.%d\e[2m%s\e[0m", bytes, deci / 102, unit_names[units]);
+		sprintf(s, " %d.%d\e[2m%c\e[0m", bytes, deci / 102, unit_names[units]);
 	} else {
 		if (deci > 1024/2) bytes++;
-		sprintf(s, " %3d\e[2m%s\e[0m", bytes, unit_names[units]);
+		sprintf(s, " %3d\e[2m%c\e[0m", bytes, unit_names[units]);
 	}
 	return s;
 }
