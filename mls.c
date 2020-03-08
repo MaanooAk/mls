@@ -31,6 +31,7 @@ char option_mix = 0;
 char option_sort = 'T';
 char option_tree = 0;
 char option_collapse = 0;
+char option_files = 1;
 
 
 int handle_args(int argc, char *argv[], int start) {
@@ -54,6 +55,7 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 'X') option_sort = 'X';
 			else if (argv[i][ci] == 'm') option_mix = 1;
 			else if (argv[i][ci] == 's') option_short += 1;
+			else if (argv[i][ci] == 'd') option_files = 0;
 
 			else {
 				printf("%s", help);
@@ -237,8 +239,11 @@ int load_items(const char* path, struct item *items) {
 			if (name[0] == '.' && name[1] == 0) continue;
 			if (name[0] == '.' && name[1] == '.' && name[2] == 0) continue;
 
-			struct item *i = &(items[items_count++]);
 			const char type = *(buf + bpos + d->d_reclen - 1);
+
+			if (!option_files && type != DT_DIR) continue;
+
+			struct item *i = &(items[items_count++]);
 
 			fullname[strlen(path) + 1] = 0;
 			strcat(fullname, name);

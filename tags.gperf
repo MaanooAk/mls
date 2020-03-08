@@ -8,5 +8,6 @@ struct tag_entry { const char* name; const char* tag; };
 /.git "git"
 Makefile "make"
 pom.xml "mvn"
+build.gradle "gradle"
 #
 %%
