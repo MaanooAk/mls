@@ -2,6 +2,8 @@
 
 maanoo's ls
 
+![Screenshot from 2020-03-15 16-55-50](https://user-images.githubusercontent.com/6997990/76703909-0754eb00-66de-11ea-8318-4f026cad4b01.png)
+
 ```
 NAME
        mls - maanoo's ls (list directory contents)
@@ -17,6 +19,8 @@ OPTIONS
        -a     Do not ignore hidden files
 
        -m     Mix the directories with the other files while sorting
+
+       -d     Ignore all files except directories
 
    List options
        -s     Reduce listed info, can be repeated 2 times
@@ -46,5 +50,6 @@ EXIT STATUS
 
 SEE ALSO
        Full documentation <https://github.com/MaanooAk/mls>
+
 ```
 

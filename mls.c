@@ -35,18 +35,15 @@ char option_files = 1;
 
 
 int handle_args(int argc, char *argv[], int start) {
-	char onlyfiles = 0;
 
 	for (int i = start; i < argc; i++) {
 
-		if (argv[i][0] != '-' || onlyfiles) {
+		if (argv[i][0] != '-') {
 			return i;
 
 		} else for (int ci = 1; argv[i][ci] != 0; ci++) {
 
-			if (argv[i][ci] == '-' && argv[i][ci+1] == 0) onlyfiles = 1;
-
-			else if (argv[i][ci] == 'a') option_all = 1;
+			     if (argv[i][ci] == 'a') option_all = 1;
 			else if (argv[i][ci] == 't') option_tree = 1;
 			else if (argv[i][ci] == 'c') option_collapse += 1;
 			else if (argv[i][ci] == 'U') option_sort = 0;
@@ -57,10 +54,7 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 's') option_short += 1;
 			else if (argv[i][ci] == 'd') option_files = 0;
 
-			else {
-				printf("%s", help);
-				exit(1);
-			}
+			else { printf("%s", help); exit(1); }
 		}
 	}
 	return -1;
@@ -83,11 +77,9 @@ const char* get_tag_entry_or(char* name, const char* def) {
 
 void fill_consts() {
 
-    tzset();
+	tzset();
 	time_t now = time(NULL);
-    localtime_r(&now, &tnow);
-
-	//for (int i=0; i<256; i++) type_symbol[i] = "?", type_color[i] = "1;31";
+	localtime_r(&now, &tnow);
 
 	type_symbol[DT_REG]  = "     ";
 	type_symbol[DT_DIR]  = "\e[1;34md\e[0m    ";
@@ -562,8 +554,8 @@ const char* print_u_colortext(const struct item *i) {
 
 const char* print_u_time(char *s, struct timespec *ts) {
 
-    struct tm t;
-    localtime_r(&(ts->tv_sec), &t);
+	struct tm t;
+	localtime_r(&(ts->tv_sec), &t);
 
 	char* format;
 	if (t.tm_year == tnow.tm_year) {
@@ -574,7 +566,7 @@ const char* print_u_time(char *s, struct timespec *ts) {
 		} else format = "\e[30m%y-\e[90m%m-%d %H:%M\e[0m";
 	} else format = "\e[90m%y-%m-%d %H:%M\e[0m";
 
-    strftime(s, 200, format, &t);
+	strftime(s, 200, format, &t);
 	return s;
 }
 
@@ -595,7 +587,7 @@ const char* print_u_size(char *s, off_t bytes) {
 		strcpy(s, "   - ");
 	} else if (units == 0) {
 		sprintf(s, " %3ld ", bytes);
-	} else if (bytes < 10 && units > 2) {
+	} else if (bytes < 10 && units > 2) { // show decimals for greater than M
 		sprintf(s, " %ld.%ld\e[2m%c\e[0m", bytes, deci / 102, unit_names[units]);
 	} else {
 		if (deci > 1024/2) bytes++;
