@@ -583,7 +583,7 @@ const char* print_u_size(char *s, off_t bytes) {
 
 	static const char* unit_names = " KMGTPEZY";
 
-	if (bytes == 0) {
+	if (bytes == 0 && units == 0) {
 		strcpy(s, "   - ");
 	} else if (units == 0) {
 		sprintf(s, " %3ld ", bytes);

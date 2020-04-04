@@ -9,5 +9,6 @@ struct tag_entry { const char* name; const char* tag; };
 Makefile "make"
 pom.xml "mvn"
 build.gradle "gradle"
+.xlist "xlist"
 #
 %%
