@@ -560,7 +560,7 @@ const char* print_u_time(char *s, struct timespec *ts) {
 	char* format;
 	if (t.tm_year == tnow.tm_year) {
 		if (t.tm_mon == tnow.tm_mon) {
-			if (t.tm_mon == tnow.tm_mon) {
+			if (t.tm_mday == tnow.tm_mday) {
 				format = "\e[30m%y-%m-%d \e[90m%H:%M\e[0m";
 			} else format = "\e[30m%y-%m-\e[90m%d %H:%M\e[0m";
 		} else format = "\e[30m%y-\e[90m%m-%d %H:%M\e[0m";
