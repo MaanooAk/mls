@@ -143,6 +143,9 @@ int main(int argc, char *argv[]) {
 
 	int shows = 0;
 
+	// if the name of the binary starts with a 't' (eg. tree, tmls) switch to tree mode
+	if (argv[0][0] == 't') option_tree = 1;
+
 	int pos = 1;
 	while(1) {
 		pos = handle_args(argc, argv, pos);

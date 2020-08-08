@@ -22,6 +22,7 @@ install: $(TARGET)
 	mkdir -p $(INSTALL_PATH)/bin
 	cp -f $(TARGET) $(INSTALL_PATH)/bin
 	chmod 755 $(INSTALL_PATH)/bin/$(TARGET)
+	ln -s $(INSTALL_PATH)/bin/$(TARGET) $(INSTALL_PATH)/bin/t$(TARGET)
 
 uninstall:
 	rm -f $(INSTALL_PATH)/bin/$(TARGET)
