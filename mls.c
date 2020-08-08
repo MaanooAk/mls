@@ -29,6 +29,7 @@ char option_all = 0;
 char option_short = 0;
 char option_mix = 0;
 char option_sort = 'T';
+char option_rev = 0;
 char option_tree = 0;
 char option_collapse = 0;
 char option_files = 1;
@@ -50,6 +51,7 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 'S') option_sort = 'S';
 			else if (argv[i][ci] == 'N') option_sort = 'N';
 			else if (argv[i][ci] == 'X') option_sort = 'X';
+			else if (argv[i][ci] == 'r') option_rev = !option_rev;
 			else if (argv[i][ci] == 'm') option_mix = 1;
 			else if (argv[i][ci] == 's') option_short += 1;
 			else if (argv[i][ci] == 'd') option_files = 0;
@@ -383,21 +385,9 @@ void load_link(struct item *i) {
 }
 
 
-int item_cmp_time(const void * a, const void * b);
-int item_cmp_size(const void * a, const void * b);
-int item_cmp_name(const void * a, const void * b);
-int item_cmp_exte(const void * a, const void * b);
+#define CMP_HEADER(X) int X (const void * ia, const void * ib)
+#define CMP_FUNC(X) CMP_HEADER(X); CMP_HEADER(X ## _rev) { return X(ib, ia); } CMP_HEADER(X)
 
-void sort_items(struct item *items, int items_count) {
-
-	     if (option_sort == 'T') qsort(items, items_count, sizeof(struct item), item_cmp_time);
-	else if (option_sort == 'S') qsort(items, items_count, sizeof(struct item), item_cmp_size);
-	else if (option_sort == 'N') qsort(items, items_count, sizeof(struct item), item_cmp_name);
-	else if (option_sort == 'X') qsort(items, items_count, sizeof(struct item), item_cmp_exte);
-}
-
-
-#define CMP_FUNC(X) int X (const void * ia, const void * ib)
 #define CMP_EXTRACT struct item *a = (struct item*) ia, *b = (struct item*) ib;
 
 #define CMP(X, Y) { if ((X) > (Y)) return 1; if ((X) < (Y)) return -1; }
@@ -412,8 +402,7 @@ CMP_FUNC( item_cmp_time ) { CMP_EXTRACT
 CMP_FUNC( item_cmp_size ) { CMP_EXTRACT
 
 	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
-	CMP(a->size, b->size);
-	return 0;
+	return (a->size - b->size);
 }
 
 CMP_FUNC( item_cmp_name ) { CMP_EXTRACT
@@ -427,6 +416,19 @@ CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT
 	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
 	return strcmp(a->extension, b->extension);
 }
+
+void sort_items(struct item *items, int items_count) {
+
+#define SORT(X) qsort(items, items_count, sizeof(struct item), option_rev ? X ## _rev : X)
+
+	     if (option_sort == 'T') SORT(item_cmp_time);
+	else if (option_sort == 'S') SORT(item_cmp_size);
+	else if (option_sort == 'N') SORT(item_cmp_name);
+	else if (option_sort == 'X') SORT(item_cmp_exte);
+
+#undef SORT
+}
+
 
 void print_root(const char* path, const char* postfix) {
 	char root[PATH_MAX];
