@@ -428,11 +428,20 @@ CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT
 	return strcmp(a->extension, b->extension);
 }
 
+void print_root(const char* path, const char* postfix) {
+	char root[PATH_MAX];
+	// the path prepened with a slash and no trailing slash is needed to find the corrent color
+	int last = sprintf(root, "/%s", path) - 1;
+	if (root[last] == '/') root[last] = 0;
+	const char* color = get_color_entry_or(root, type_color[DT_DIR]);
+	// prints no new line, postfix may contain new lines
+	printf("\e[%sm%s\e[0m%s", color, root + 1, postfix);
+}
 
 void print_list(const char* path, struct item *items, int items_count, struct stats* stats) {
 	char buffer[256], size[128], printname[2*PATH_MAX];
 
-	printf("\e[2m%s\e[0m\n", path);
+	print_root(path, "\n");
 
 	for (int index=0; index<items_count; index++) {
 		struct item *i = &(items[index]);
@@ -472,14 +481,7 @@ void print_list(const char* path, struct item *items, int items_count, struct st
 void print_tree(const char* path, struct item *items, int items_count, struct stats* stats) {
 	int depth_len = strlen(stats->depth);
 
-	if (!stats->depth[0]) {
-		// print the root directory of the tree
-		// the path prepened with a slash is needed to find the corrent color
-		char root[PATH_MAX];
-		sprintf(root, "/%s", path);
-		const char* color = get_color_entry_or(root, type_color[DT_DIR]);
-		printf("\e[%sm%s\e[0m", color, path);
-	}
+	if (!stats->depth[0]) print_root(path, "");
 
 	char single_dir = (option_collapse > 0 && items_count == 1 && items[0].type == DT_DIR && stats->depth[0]);
 	char single_file = (option_collapse > 1 && items_count == 1 && items[0].type != DT_DIR && stats->depth[0]);
