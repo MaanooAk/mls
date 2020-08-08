@@ -26,3 +26,4 @@ install: $(TARGET)
 
 uninstall:
 	rm -f $(INSTALL_PATH)/bin/$(TARGET)
+	rm -f $(INSTALL_PATH)/bin/t$(TARGET)

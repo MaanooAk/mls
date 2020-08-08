@@ -51,6 +51,7 @@ int handle_args(int argc, char *argv[], int start) {
 			else if (argv[i][ci] == 'S') option_sort = 'S';
 			else if (argv[i][ci] == 'N') option_sort = 'N';
 			else if (argv[i][ci] == 'X') option_sort = 'X';
+			else if (argv[i][ci] == 'T') option_sort = 'T';
 			else if (argv[i][ci] == 'r') option_rev = !option_rev;
 			else if (argv[i][ci] == 'm') option_mix = 1;
 			else if (argv[i][ci] == 's') option_short += 1;
@@ -385,38 +386,43 @@ void load_link(struct item *i) {
 }
 
 
+// Compare methods for struct item with item_cmp_ prefix with no and _rev postfix each.
+// Interface function sort_items sorts a struct item array based on option_sort, option_rev
+// and option_mix.
+
 #define CMP_HEADER(X) int X (const void * ia, const void * ib)
 #define CMP_FUNC(X) CMP_HEADER(X); CMP_HEADER(X ## _rev) { return X(ib, ia); } CMP_HEADER(X)
 
-#define CMP_EXTRACT struct item *a = (struct item*) ia, *b = (struct item*) ib;
+#define CMP_EXTRACT const struct item *a = (const struct item*) ia, *b = (const struct item*) ib;
 
 #define CMP(X, Y) { if ((X) > (Y)) return 1; if ((X) < (Y)) return -1; }
 #define IGN_DOT(X) (X[0] == '.' ? X + 1 : X)
 
-CMP_FUNC( item_cmp_time ) { CMP_EXTRACT
+// if not option_mix, move directories at the start
+#define CMP_DIRS if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
 
-	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
+CMP_FUNC( item_cmp_time ) { CMP_EXTRACT // compare last modification times
+	CMP_DIRS
 	return (a->time_m.tv_sec - b->time_m.tv_sec);
 }
 
-CMP_FUNC( item_cmp_size ) { CMP_EXTRACT
-
-	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
-	return (a->size - b->size);
+CMP_FUNC( item_cmp_size ) { CMP_EXTRACT // compare sizes
+	CMP_DIRS
+	CMP(a->size, b->size); // size subtraction may overflow
+	return 0;
 }
 
-CMP_FUNC( item_cmp_name ) { CMP_EXTRACT
-
-	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
+CMP_FUNC( item_cmp_name ) { CMP_EXTRACT // compare names
+	CMP_DIRS
 	return strcasecmp(IGN_DOT(a->name), IGN_DOT(b->name));
 }
 
-CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT
-
-	if (!option_mix) CMP(b->ltype == DT_DIR, a->ltype == DT_DIR)
+CMP_FUNC( item_cmp_exte ) { CMP_EXTRACT // compare extension names
+	CMP_DIRS
 	return strcmp(a->extension, b->extension);
 }
 
+// sort struct item array based on option_sort, option_rev and option_mix
 void sort_items(struct item *items, int items_count) {
 
 #define SORT(X) qsort(items, items_count, sizeof(struct item), option_rev ? X ## _rev : X)
