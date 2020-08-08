@@ -65,12 +65,12 @@ const char* type_symbol[256];
 const char* type_color[256];
 const char* executable_colortext;
 
-const char* get_color_entry_or(char* name, const char* def) {
+const char* get_color_entry_or(const char* name, const char* def) {
 	struct color_entry *ce = get_color_entry(name, strlen(name));
 	return ce ? ce->colortext : def;
 }
 
-const char* get_tag_entry_or(char* name, const char* def) {
+const char* get_tag_entry_or(const char* name, const char* def) {
 	struct tag_entry *e = get_tag_entry(name, strlen(name));
 	return e ? e->tag : def;
 }
@@ -163,7 +163,6 @@ int main(int argc, char *argv[]) {
 
 	// printf("sizeof(struct item) :: %d\nPATH_MAX :: %d\ngitems_max :: %d\n", sizeof(struct item), PATH_MAX, gitems_max);
 }
-
 
 int show(const char* path, struct stats* stats) {
 
@@ -473,7 +472,14 @@ void print_list(const char* path, struct item *items, int items_count, struct st
 void print_tree(const char* path, struct item *items, int items_count, struct stats* stats) {
 	int depth_len = strlen(stats->depth);
 
-	if (!stats->depth[0]) printf("%s", path);
+	if (!stats->depth[0]) {
+		// print the root directory of the tree
+		// the path prepened with a slash is needed to find the corrent color
+		char root[PATH_MAX];
+		sprintf(root, "/%s", path);
+		const char* color = get_color_entry_or(root, type_color[DT_DIR]);
+		printf("\e[%sm%s\e[0m", color, path);
+	}
 
 	char single_dir = (option_collapse > 0 && items_count == 1 && items[0].type == DT_DIR && stats->depth[0]);
 	char single_file = (option_collapse > 1 && items_count == 1 && items[0].type != DT_DIR && stats->depth[0]);
