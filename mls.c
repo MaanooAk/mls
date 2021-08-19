@@ -589,7 +589,7 @@ const char* print_u_size(char *s, off_t bytes) {
 	} else if (units == 0) {
 		sprintf(s, " %3ld ", bytes);
 	} else if (bytes < 10 && units > 2) { // show decimals for greater than M
-		sprintf(s, " %ld.%ld\e[2m%c\e[0m", bytes, deci / 102, unit_names[units]);
+		sprintf(s, " %ld.%ld\e[2m%c\e[0m", bytes + (deci / 102) / 10, (deci / 102) % 10, unit_names[units]);
 	} else {
 		if (deci > 1024/2) bytes++;
 		sprintf(s, " %3ld\e[2m%c\e[0m", bytes, unit_names[units]);
