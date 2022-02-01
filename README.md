@@ -8,15 +8,6 @@ Faster than ls in long listing format and faster than tree in tree mode.
 
 ## Usage
 
-### Binding
-
-Optional bind it to a keyboard shortcut, eg. `Alt-l`, by adding the following lines to your shell rc, eg. `~/.bashrc`:
-
-```
-# Alt-l -> mls -a
-bind '"\el":"mls -a\n"'
-```
-
 ### Options
 
 ```
@@ -45,11 +36,21 @@ EXIT STATUS
        2      Operational error.
 ```
 
+### Binding
+
+Optional bind it to a keyboard shortcut, eg. `Alt-l`, by adding the following lines to your shell rc, eg. `~/.bashrc`:
+
+```
+# Alt-l -> mls -a
+bind '"\el":"mls -a\n"'
+```
 
 ## Install
 
 ```
 git clone https://github.com/MaanooAk/mls
+cd mls
+make
 sudo make install
 ```
 
