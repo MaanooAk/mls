@@ -207,21 +207,18 @@ int load_items(const char* path, struct item *items) {
 	strcpy(fullname, path);
 	strcat(fullname, "/");
 
-	struct linux_dirent {
-		unsigned long  d_ino;     // Inode number
-		unsigned long  d_off;     // Offset to next linux_dirent
-		unsigned short d_reclen;  // Length of this linux_dirent
-		char           d_name[];  // Filename (null-terminated)
-		/*
-		char           pad;       // Zero padding byte
-		char           d_type;    // File type, offset is (d_reclen - 1))
-		*/
+	struct linux_dirent64 {
+		ino_t          d_ino;    // 64-bit inode number
+		loff_t         d_off;    // Not an offset; see getdents()
+		unsigned short d_reclen; // Size of this dirent
+		unsigned char  d_type;   // File type
+		char           d_name[]; // Filename (null-terminated)
 	} *d;
 
 	char buf[GETDENTS_BUF_SIZE];
 
 	while (1) {
-		int nread = syscall(SYS_getdents, fd, buf, GETDENTS_BUF_SIZE);
+		int nread = syscall(SYS_getdents64, fd, buf, GETDENTS_BUF_SIZE);
 
 		//if (nread == -1) handle_error("getdents");
 		if (nread == -1) return items_count;
@@ -229,7 +226,7 @@ int load_items(const char* path, struct item *items) {
 		if (nread == 0) break;
 
 		for (int bpos = 0; bpos < nread; bpos += d->d_reclen) {
-			d = (struct linux_dirent *) (buf + bpos);
+			d = (struct linux_dirent64 *) (buf + bpos);
 
 			const char* name = d->d_name;
 
@@ -237,7 +234,7 @@ int load_items(const char* path, struct item *items) {
 			if (name[0] == '.' && name[1] == 0) continue;
 			if (name[0] == '.' && name[1] == '.' && name[2] == 0) continue;
 
-			const char type = *(buf + bpos + d->d_reclen - 1);
+			const unsigned char type = d->d_type;
 
 			if (!option_files && type != DT_DIR) continue;
 
